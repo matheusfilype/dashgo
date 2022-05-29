@@ -15,6 +15,9 @@ import { Sidebar } from "../../components/Sidebar";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { SubmitHandler, useForm } from "react-hook-form";
+import { useMutation } from "react-query";
+import { api } from "../../services/api";
+import { queryClient } from "../../services/queryClient";
 
 type SignUpFormData = {
   name: string;
@@ -37,14 +40,30 @@ const registerSchema = yup.object().shape({
 });
 
 export default function CreateUser() {
+  const createUser = useMutation(
+    async (user: SignUpFormData) => {
+      const response = await api.post("users", {
+        user: {
+          ...user,
+          created_at: new Date(),
+        },
+      });
+
+      return response.data.user;
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries("users");
+      },
+    }
+  );
+
   const { register, handleSubmit, formState } = useForm({
     resolver: yupResolver(registerSchema),
   });
 
   const handleSignUp: SubmitHandler<SignUpFormData> = async (data) => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    console.log(data);
+    await createUser.mutateAsync(data);
   };
 
   return (
@@ -88,13 +107,14 @@ export default function CreateUser() {
             <SimpleGrid minChildWidth="240px" spacing="8" w="100%">
               <Input
                 name="password"
+                type="password"
                 label="Senha"
                 error={formState.errors.password}
                 {...register("password")}
               />
               <Input
                 name="password_confirmation"
-                type="passwod"
+                type="password"
                 label="Confirmação da senha"
                 error={formState.errors.password_confirmation}
                 {...register("password_confirmation")}
